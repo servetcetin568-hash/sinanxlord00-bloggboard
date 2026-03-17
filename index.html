@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Sinanxlord Fitness Blog</title>
+
+<style>
+
+body{
+margin:0;
+font-family:system-ui;
+background:#0f0f0f;
+color:white
+}
+
+header{
+background:#000;
+padding:18px;
+text-align:center;
+font-size:22px;
+position:sticky;
+top:0;
+z-index:100
+}
+
+.container{
+max-width:700px;
+margin:auto;
+padding:20px
+}
+
+.blog{
+background:#1c1c1c;
+margin:20px 0;
+padding:20px;
+border-radius:14px;
+box-shadow:0 10px 25px rgba(0,0,0,0.6)
+}
+
+.comment{
+background:#242424;
+margin:10px 0;
+padding:12px;
+border-radius:8px
+}
+
+button{
+background:linear-gradient(45deg,#ff6a00,#ffb300);
+border:none;
+padding:10px 16px;
+border-radius:8px;
+cursor:pointer;
+font-weight:bold
+}
+
+input,textarea{
+width:100%;
+padding:10px;
+margin:8px 0;
+border-radius:8px;
+border:none;
+background:#1a1a1a;
+color:white
+}
+
+.dashboard{
+display:none;
+background:#111;
+padding:20px;
+border-radius:10px;
+margin-top:20px
+}
+
+.stats{
+display:grid;
+grid-template-columns:1fr;
+gap:15px
+}
+
+.stat{
+background:#1a1a1a;
+padding:20px;
+border-radius:12px;
+text-align:center
+}
+
+.editor{
+display:flex;
+flex-direction:column;
+gap:10px
+}
+
+.preview{
+background:#1e1e1e;
+padding:10px;
+border-radius:10px
+}
+
+.toolbar button{
+margin:3px
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+Sinanxlord Fitness Blog
+</header>
+
+<div class="container">
+
+<h2>Blog Yazıları</h2>
+
+<div id="blogs"></div>
+
+<h2>Yorum Yap</h2>
+
+<input id="name" placeholder="Adınız">
+
+<textarea id="commentText" placeholder="Yorum"></textarea>
+
+<button onclick="addComment()">Yorum Gönder</button>
+
+<div id="comments"></div>
+
+<br>
+
+<button onclick="adminLogin()">Admin Panel</button>
+
+<div id="dashboard" class="dashboard">
+
+<h2>Admin Dashboard</h2>
+
+<div class="stats">
+
+<div class="stat">
+<h3 id="blogCount">0</h3>
+<p>Blog Yazısı</p>
+</div>
+
+<div class="stat">
+<h3 id="commentCount">0</h3>
+<p>Yorum</p>
+</div>
+
+<div class="stat">
+<h3 id="likeCount">0</h3>
+<p>Toplam Beğeni</p>
+</div>
+
+</div>
+
+<h3>Yeni Blog Yazısı</h3>
+
+<input id="blogTitle" placeholder="Blog Başlığı">
+
+<div class="toolbar">
+
+<button onclick="addHeading()">Başlık</button>
+<button onclick="addBold()">Kalın</button>
+<button onclick="addList()">Liste</button>
+<button onclick="addImage()">Resim</button>
+<button onclick="addYoutube()">YouTube</button>
+
+</div>
+
+<div class="editor">
+
+<textarea id="markdownInput"></textarea>
+
+<div class="preview">
+<h3>Canlı Önizleme</h3>
+<div id="preview"></div>
+</div>
+
+</div>
+
+<button onclick="addBlog()">Blog Kaydet</button>
+
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
+import {
+getFirestore,
+collection,
+addDoc,
+getDocs,
+deleteDoc,
+doc,
+updateDoc
+}
+
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+
+apiKey:"AIzaSyCFp4oHYalBK0vOhqfIV3G4djh3hTsfDjs",
+authDomain:"sinanxlord-site.firebaseapp.com",
+projectId:"sinanxlord-site",
+storageBucket:"sinanxlord-site.firebasestorage.app",
+messagingSenderId:"917262484111",
+appId:"1:917262484111:web:6958298b242198b6c526fa",
+measurementId:"G-7LD7653MD0"
+
+}
+
+const app = initializeApp(firebaseConfig)
+
+const db = getFirestore(app)
+
+let admin = false
+
+window.adminLogin = function(){
+
+let pass = prompt("Admin şifre")
+
+if(pass === "12345"){
+
+admin = true
+
+document.getElementById("dashboard").style.display = "block"
+
+loadBlogs()
+loadComments()
+
+}
+
+}
+
+const mdInput = document.getElementById("markdownInput")
+
+mdInput.addEventListener("input",()=>{
+
+let text = mdInput.value
+
+let html = marked.parse(text)
+
+html = html.replace(/\[youtube:(.*?)\]/g,
+'<iframe width="100%" height="315" src="https://www.youtube.com/embed/$1"></iframe>'
+)
+
+document.getElementById("preview").innerHTML = html
+
+})
+
+window.addHeading = () => mdInput.value += "# Başlık\n"
+
+window.addBold = () => mdInput.value += "**kalın yazı**\n"
+
+window.addList = () => mdInput.value += "- madde\n"
+
+window.addImage = function(){
+
+let url = prompt("Resim linki")
+
+mdInput.value += `![resim](${url})\n`
+
+}
+
+window.addYoutube = function(){
+
+let url = prompt("YouTube linki")
+
+let id = url.split("v=")[1]
+
+mdInput.value += `[youtube:${id}]\n`
+
+}
+
+async function loadBlogs(){
+
+const snap = await getDocs(collection(db,"blogs"))
+
+let html = ""
+
+document.getElementById("blogCount").innerText = snap.size
+
+snap.forEach(d=>{
+
+let data = d.data()
+
+let content = marked.parse(data.content)
+
+content = content.replace(/\[youtube:(.*?)\]/g,
+'<iframe width="100%" height="315" src="https://www.youtube.com/embed/$1"></iframe>'
+)
+
+html += `
+
+<div class="blog">
+
+<h3>${data.title}</h3>
+
+<div>${content}</div>
+
+${admin ? `<button onclick="deleteBlog('${d.id}')">Sil</button>` : ""}
+
+</div>
+
+`
+
+})
+
+document.getElementById("blogs").innerHTML = html
+
+}
+
+window.addBlog = async function(){
+
+let title = document.getElementById("blogTitle").value
+
+let content = mdInput.value
+
+await addDoc(collection(db,"blogs"),{title,content})
+
+loadBlogs()
+
+}
+
+window.deleteBlog = async function(id){
+
+await deleteDoc(doc(db,"blogs",id))
+
+loadBlogs()
+
+}
+
+async function loadComments(){
+
+const snap = await getDocs(collection(db,"comments"))
+
+let html = ""
+
+let likeTotal = 0
+
+document.getElementById("commentCount").innerText = snap.size
+
+snap.forEach(d=>{
+
+let data = d.data()
+
+likeTotal += data.likes
+
+html += `
+
+<div class="comment">
+
+<b>${data.name}</b>
+
+<p>${data.text}</p>
+
+<button onclick="likeComment('${d.id}',${data.likes})">👍 ${data.likes}</button>
+
+${admin ? `<button onclick="deleteComment('${d.id}')">Sil</button>` : ""}
+
+</div>
+
+`
+
+})
+
+document.getElementById("comments").innerHTML = html
+
+document.getElementById("likeCount").innerText = likeTotal
+
+}
+
+window.addComment = async function(){
+
+let name = document.getElementById("name").value
+
+let text = document.getElementById("commentText").value
+
+await addDoc(collection(db,"comments"),{name,text,likes:0})
+
+loadComments()
+
+}
+
+window.likeComment = async function(id,likes){
+
+await updateDoc(doc(db,"comments",id),{likes:likes+1})
+
+loadComments()
+
+}
+
+window.deleteComment = async function(id){
+
+await deleteDoc(doc(db,"comments",id))
+
+loadComments()
+
+}
+
+loadBlogs()
+
+loadComments()
+
+</script>
+
+</body>
+
+</html>
